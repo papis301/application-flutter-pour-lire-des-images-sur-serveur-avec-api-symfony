@@ -10,6 +10,7 @@ class ImageGalleryApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Galerie Symfony',
       home: ImageGalleryScreen(),
     );
@@ -55,23 +56,81 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Galerie Symfony')),
+      appBar: AppBar(
+        title: Text('Infos Utils'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () {
+              setState(() {
+                isLoading = true;
+              });
+              fetchImages();
+            },
+          ),
+        ],
+      ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
           : imageUrls.isEmpty
-              ? Center(child: Text("Aucune image disponible"))
-              : GridView.builder(
-                  padding: EdgeInsets.all(10),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                  ),
-                  itemCount: imageUrls.length,
-                  itemBuilder: (context, index) {
-                    return Image.network(imageUrls[index], fit: BoxFit.cover);
+          ? Center(child: Text("Aucune image disponible"))
+          : ListView.separated(
+        itemCount: imageUrls.length,
+        separatorBuilder: (context, index) => Divider(
+          color: Colors.grey,
+          thickness: 1,
+          height: 24,
+        ),
+        itemBuilder: (context, index) {
+          final imageUrl = imageUrls[index];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Image.network(
+                imageUrl,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+              SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ImageDetailScreen(imageUrl: imageUrl),
+                      ),
+                    );
                   },
+                  child: Text("Afficher"),
                 ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ImageDetailScreen extends StatelessWidget {
+  final String imageUrl;
+
+  const ImageDetailScreen({Key? key, required this.imageUrl}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Image")),
+      body: Center(
+        child: InteractiveViewer(
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
     );
   }
 }
