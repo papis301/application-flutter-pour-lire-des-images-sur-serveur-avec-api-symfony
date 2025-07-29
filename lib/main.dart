@@ -1,6 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 void main() {
   runApp(ImageGalleryApp());
@@ -10,8 +13,9 @@ class ImageGalleryApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Infos Utils',
       debugShowCheckedModeBanner: false,
-      title: 'Galerie Symfony',
+      theme: ThemeData(primarySwatch: Colors.blue),
       home: ImageGalleryScreen(),
     );
   }
@@ -24,33 +28,107 @@ class ImageGalleryScreen extends StatefulWidget {
 
 class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   List<String> imageUrls = [];
+  List<String> previousImageUrls = [];
   bool isLoading = true;
+  Timer? _timer;
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
+    _initNotifications();
     fetchImages();
+    startPolling();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initNotifications() async {
+    const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initSettings =
+    InitializationSettings(android: androidSettings);
+
+    await flutterLocalNotificationsPlugin.initialize(initSettings);
+  }
+
+  void startPolling() {
+    _timer = Timer.periodic(Duration(seconds: 30), (timer) async {
+      try {
+        final response =
+        await http.get(Uri.parse("http://infosutils.deydem.pro/api/images"));
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          final List<String> newImageUrls = data
+              .map((e) => "http://infosutils.deydem.pro" + e["url"])
+              .toList()
+              .cast<String>();
+
+          if (previousImageUrls.isNotEmpty &&
+              newImageUrls.length > previousImageUrls.length) {
+            _showNotification("Une nouvelle image a été ajoutée !");
+          }
+
+          setState(() {
+            imageUrls = newImageUrls;
+            previousImageUrls = newImageUrls;
+            isLoading = false;
+          });
+        }
+      } catch (e) {
+        print("Erreur polling : $e");
+      }
+    });
   }
 
   Future<void> fetchImages() async {
     try {
-      final response = await http.get(Uri.parse("http://10.55.133.71:8001/api/images"));
-
+      final response =
+      await http.get(Uri.parse("http://infosutils.deydem.pro/api/images"));
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
-          imageUrls = data.map((e) => "http://10.55.133.71:8001/" + e["url"]).toList().cast<String>();
+          imageUrls = data
+              .map((e) => "http://infosutils.deydem.pro" + e["url"])
+              .toList()
+              .cast<String>();
+          previousImageUrls = imageUrls;
           isLoading = false;
         });
       } else {
-        throw Exception("Erreur lors de la récupération des images");
+        throw Exception("Erreur récupération images");
       }
     } catch (e) {
       print("Erreur: $e");
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     }
+  }
+
+  Future<void> _showNotification(String message) async {
+    const AndroidNotificationDetails androidDetails =
+    AndroidNotificationDetails(
+      'nouvelle_image_channel',
+      'Nouvelles Images',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails platformDetails =
+    NotificationDetails(android: androidDetails);
+
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      'Galerie Symfony',
+      message,
+      platformDetails,
+    );
   }
 
   @override
@@ -62,9 +140,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: () {
-              setState(() {
-                isLoading = true;
-              });
+              setState(() => isLoading = true);
               fetchImages();
             },
           ),
@@ -99,7 +175,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ImageDetailScreen(imageUrl: imageUrl),
+                        builder: (context) =>
+                            ImageDetailScreen(imageUrl: imageUrl),
                       ),
                     );
                   },

@@ -8,11 +8,12 @@ plugins {
 android {
     namespace = "com.example.flutter_image_gallery"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "29.0.13599879"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -37,6 +38,12 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    dependencies {
+        implementation("androidx.core:core-ktx:1.12.0")
+        coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4") // 👈 OBLIGATOIRE
+    }
+
 }
 
 flutter {
